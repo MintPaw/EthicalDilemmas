@@ -5,6 +5,8 @@ import flixel.FlxG;
 import flixel.FlxObject;
 import flixel.FlxState;
 import flixel.FlxSprite;
+import flixel.effects.particles.FlxParticle;
+import flixel.effects.particles.FlxEmitter;
 import flixel.group.FlxGroup;
 import flixel.group.FlxSpriteGroup;
 import flixel.math.FlxMath;
@@ -37,6 +39,7 @@ class GameState extends FlxState
 	private var _explosionGroup:FlxTypedSpriteGroup<Explosion>;
 	private var _overlayGroup:FlxGroup;
 
+	private var _baitEmitter:FlxEmitter;
 
 	public function new(playerDefs:Array<PlayerDef>, mapName:String)
 	{
@@ -55,6 +58,9 @@ class GameState extends FlxState
 			_explosionGroup = new FlxTypedSpriteGroup<Explosion>();
 			_overlayGroup = new FlxGroup();
 			_zombieSpawnTimer = 0;
+
+			_baitEmitter = new FlxEmitter(0, 0, 10);
+			_baitEmitter.speed.set(50, 100);
 		}
 
 		{ // Create tilemap
@@ -106,6 +112,7 @@ class GameState extends FlxState
 				p.x = (_tilemaps[0].widthInTiles / 2 - 4 + i) * TILE_WIDTH;
 				p.y = _tilemaps[0].heightInTiles / 2 * TILE_HEIGHT;
 				for (obj in p.adds) _overlayGroup.add(obj);
+
 				p.shootCallback = shoot;
 				p.specialCallback = special;
 				_playerGroup.add(p);
@@ -129,6 +136,7 @@ class GameState extends FlxState
 			add(_zombieGroup);
 			add(_medpackGroup);
 			add(_bulletGroup);
+			for (p in _playerGroup.members) add(p.emitter);
 			add(_explosionGroup);
 
 			add(_tilemaps[3]);
@@ -180,15 +188,46 @@ class GameState extends FlxState
 					if (zombie.targetTime <= 0)
 					{
 						zombie.targetTime = Zombie.TARGET_TIME;
+						zombie.currentTarget = null;
 
-						for (player in _playerGroup.members)
+						/*for (player in _playerGroup.members)
 						{
+							for (part in player.emitter)
+							{
+								if (part.health <= 0) continue;
+								if (FlxMath.distanceBetween(zombie, part) < FlxMath.distanceBetween(zombie, zombie.currentTarget)) zombie.currentTarget = part;
+							}
+
+							if (player.health <= 0) continue;
 							if (FlxMath.distanceBetween(zombie, player) < FlxMath.distanceBetween(zombie, zombie.currentTarget)) zombie.currentTarget = player;
 						}
 
 						zombie.path.cancel();
-						if (FlxMath.distanceBetween(zombie, zombie.currentTarget) > Zombie.ATTACK_RANGE)
+						if (zombie.currentTarget != null && FlxMath.distanceBetween(zombie, zombie.currentTarget) > Zombie.ATTACK_RANGE)
 							zombie.path.start(zombie, _collisionMap.findPath(zombie.getMidpoint(), zombie.currentTarget.getMidpoint()), 50);
+					}
+
+					if (zombie.currentTarget != null && zombie.currentTarget.health <= 0) zombie.currentTarget = null;*/
+
+						var targets:Array<FlxSprite> = [];
+
+						for (player in _playerGroup.members)
+						{
+							if (player.health > 0) targets.push(cast(player, FlxSprite));
+							for (part in player.emitter) if (part.health > 0) targets.push(cast(part, FlxSprite));
+						}
+
+						if (targets.length > 0) zombie.currentTarget = targets[0];
+						for (target in targets)
+						{
+							if (FlxMath.distanceBetween(zombie, target) < FlxMath.distanceBetween(zombie, zombie.currentTarget)) zombie.currentTarget = target;
+						}
+
+						zombie.path.cancel();
+						if (zombie.currentTarget != null && FlxMath.distanceBetween(zombie, zombie.currentTarget) > Zombie.ATTACK_RANGE)
+						{
+							zombie.path.start(zombie, _collisionMap.findPath(zombie.getMidpoint(), zombie.currentTarget.getMidpoint()), 50);
+						}
 					}
 				}
 
@@ -196,7 +235,7 @@ class GameState extends FlxState
 					zombie.attackTime -= elapsed;
 					if (zombie.attackTime <= 0)
 					{
-						if (FlxMath.distanceBetween(zombie, zombie.currentTarget) <= Zombie.ATTACK_RANGE)
+						if (zombie.currentTarget != null && FlxMath.distanceBetween(zombie, zombie.currentTarget) <= Zombie.ATTACK_RANGE)
 						{
 							zombie.attackTime = Zombie.ATTACK_TIME;
 							zombie.currentTarget.hurt(Zombie.DAMAGE);
@@ -242,6 +281,7 @@ class GameState extends FlxState
 			medpack.y = loc.y - medpack.height / 2 + dir.y * 30;
 			medpack.velocity.set(throwVector.x, throwVector.y);
 			medpack.drag.set(1500, 1500);
+			medpack.elasticity = 0.8;
 			_medpackGroup.add(medpack);
 		}
 
@@ -270,9 +310,23 @@ class GameState extends FlxState
 				add(player.mine);
 			} else {
 				player.mine.visible = false;
-
 				createExplosion(player.mine.x, player.mine.y, .25);
 			}
+		}
+
+		// Bait
+		if (type == 3)
+		{
+			for (i in 0...10)
+			{
+				var part:FlxParticle = new FlxParticle();
+				part.makeGraphic(2, 2, 0xFFCC5500);
+				part.visible = false;
+				part.health = 0.0001;
+				player.emitter.add(part);
+			}
+
+			player.emitter.start(false, 0.1, 10);
 		}
 	}
 

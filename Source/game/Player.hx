@@ -2,6 +2,8 @@ package game;
 
 import flixel.FlxG;
 import flixel.FlxSprite;
+import flixel.effects.particles.FlxParticle;
+import flixel.effects.particles.FlxEmitter;
 import flixel.input.gamepad.FlxGamepad;
 import flixel.input.gamepad.XboxButtonID;
 import flixel.math.FlxPoint;
@@ -19,6 +21,7 @@ class Player extends FlxSprite
 	public var baseBulletDamage:Float;
 
 	public var mine:FlxSprite;
+	public var emitter:FlxEmitter;
 
 	public var adds:Array<Dynamic> = [];
 	public var shootCallback:Dynamic;
@@ -65,6 +68,10 @@ class Player extends FlxSprite
 		mine = new FlxSprite();
 		mine.makeGraphic(5, 5, 0xFFFF8800);
 		mine.visible = false;
+
+		emitter = new FlxEmitter();
+		emitter.lifespan.set(100, 100);
+		emitter.drag.set(50, 50);
 
 		_itemShowTime = 5;
 
@@ -193,7 +200,7 @@ class Player extends FlxSprite
 			}
 		}
 
-		{ // Update Special
+		{ // Update special use
 			chargeTime -= elapsed;
 			if (charges == maxCharges) chargeTime = baseChargeTime;
 
@@ -216,6 +223,7 @@ class Player extends FlxSprite
 
 		{ // Update ui
 			_healthBar.x = x + width / 2 - _healthBar.width / 2;
+
 			_healthBar.y = y + height + 4;
 			_healthBar.value = health;
 
@@ -233,11 +241,32 @@ class Player extends FlxSprite
 			_itemText.visible = _itemShowTime > 0;
 			_itemShowTime -= elapsed;
 		}
+
+		{ //Update misc specials
+			var launchAngle:Float = 0;
+			if (_dirVector.x == 1 && _dirVector.y == 0)		 launchAngle = 0;
+			if (_dirVector.x == 1 && _dirVector.y == 1)		 launchAngle = 45;
+			if (_dirVector.x == 0 && _dirVector.y == 1)		 launchAngle = 90;
+			if (_dirVector.x == -1 && _dirVector.y == 1)	 launchAngle = 90 + 45;
+			if (_dirVector.x == -1 && _dirVector.y == 0)	 launchAngle = 180;
+			if (_dirVector.x == -1 && _dirVector.y == -1)	 launchAngle = 180 + 45;
+			if (_dirVector.x == 0 && _dirVector.y == -1)	 launchAngle = 270;
+			if (_dirVector.x == 0 && _dirVector.y == -1)	 launchAngle = 270 + 90;
+
+			emitter.launchAngle.set(launchAngle - 45, launchAngle + 45);
+			emitter.x = x;
+			emitter.y = y;
+		}
 	}
 
 	override public function hurt(damage:Float):Void
 	{
 		_speedMod /= 2.5;
 		super.hurt(damage);
+	}
+
+	override public function kill():Void
+	{
+		for (item in adds) item.kill();
 	}
 }
