@@ -15,8 +15,8 @@ class MainState extends FlxState
 	override public function create():Void
 	{
 		var playerDefs:Array<PlayerDef> = [];
-		playerDefs.push({ controllerNumber: -1, characterNumber: 0 });
-		playerDefs.push({ controllerNumber: 0, characterNumber: 1 });
+		playerDefs.push({ controllerNumber: -1, characterNumber: 2 });
+		playerDefs.push({ controllerNumber: 0, characterNumber: 3 });
 
 		FlxG.switchState(new GameState(playerDefs, "map1"));
 	}

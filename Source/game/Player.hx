@@ -6,6 +6,7 @@ import flixel.input.gamepad.FlxGamepad;
 import flixel.input.gamepad.XboxButtonID;
 import flixel.math.FlxPoint;
 import flixel.ui.FlxBar;
+import flixel.text.FlxText;
 import game.GameState;
 
 class Player extends FlxSprite
@@ -16,6 +17,8 @@ class Player extends FlxSprite
 
 	public var baseBulletTime:Float;
 	public var baseBulletDamage:Float;
+
+	public var mine:FlxSprite;
 
 	public var adds:Array<Dynamic> = [];
 	public var shootCallback:Dynamic;
@@ -29,6 +32,9 @@ class Player extends FlxSprite
 	private var _playerDef:PlayerDef;
 	private var _healthBar:FlxBar;
 	private var _chargeBar:FlxBar;
+	private var _itemText:FlxText;
+
+	private var _itemShowTime:Float;
 
 	private var _bulletTime:Float = 0;
 	private var _speedMod:Float = 1;
@@ -48,8 +54,19 @@ class Player extends FlxSprite
 		adds.push(_healthBar);
 
 		_chargeBar = new FlxBar(0, 0, null, 20, 2, null, "", 0, 1);
-		_chargeBar.createFilledBar(0xFF0700C4, 0xFF03004F);
+		_chargeBar.createFilledBar(0xFF02002E, 0xFF6666FF);
 		adds.push(_chargeBar);
+
+		_itemText = new FlxText(0, 0, 150, "99\nTHINGS", 16);
+		_itemText.color = 0xFF000000;
+		_itemText.alignment = "center";
+		adds.push(_itemText);
+
+		mine = new FlxSprite();
+		mine.makeGraphic(5, 5, 0xFFFF8800);
+		mine.visible = false;
+
+		_itemShowTime = 5;
 
 		var colour:UInt = 0;
 
@@ -69,7 +86,7 @@ class Player extends FlxSprite
 			colour = 0xFFFF0000;
 			baseChargeTime = 20;
 			maxCharges = 3;
-			baseBulletTime = .3;
+			baseBulletTime = .15;
 			baseBulletDamage = .3;
 		}
 
@@ -79,7 +96,7 @@ class Player extends FlxSprite
 			colour = 0xFFFF00FF;
 			baseChargeTime = 10;
 			maxCharges = 10;
-			baseBulletTime = .2;
+			baseBulletTime = .1;
 			baseBulletDamage = .4;
 		}
 
@@ -89,7 +106,7 @@ class Player extends FlxSprite
 			colour = 0xFFFFFF00;
 			baseChargeTime = 10;
 			maxCharges = 10;
-			baseBulletTime = .5;
+			baseBulletTime = .05;
 			baseBulletDamage = .2;
 		}
 
@@ -99,6 +116,8 @@ class Player extends FlxSprite
 
 	override public function update(elapsed:Float):Void
 	{
+		super.update(elapsed);
+
 		var left:Bool = false;
 		var right:Bool = false;
 		var up:Bool = false;
@@ -115,7 +134,7 @@ class Player extends FlxSprite
 					if (FlxG.keys.pressed.UP) up = true;
 					if (FlxG.keys.pressed.DOWN) down = true;
 					if (FlxG.keys.pressed.Z) shoot = true;
-					if (FlxG.keys.pressed.X) special = true;
+					if (FlxG.keys.justPressed.X) special = true;
 				}
 			}
 
@@ -135,7 +154,7 @@ class Player extends FlxSprite
 					}
 				}
 			}
-		}
+		} 
 
 		{ // Update movement
 			maxVelocity.set(BASE_SPEED * _speedMod, BASE_SPEED * _speedMod);
@@ -181,27 +200,39 @@ class Player extends FlxSprite
 			if (chargeTime <= 0)
 			{
 				charges++;
+				_itemShowTime = 2;
 				chargeTime = baseChargeTime;
 			}
+
+			if (mine.visible && special) charges++;
 
 			if (special && charges > 0)
 			{
 				charges--;
-				specialCallback(getMidpoint(), _dirVector, _playerDef.characterNumber);
+				_itemShowTime = 2;
+				specialCallback(getMidpoint(), _dirVector, _playerDef.characterNumber, this);
 			}
 		}
 
-		{ // Update bars
+		{ // Update ui
 			_healthBar.x = x + width / 2 - _healthBar.width / 2;
 			_healthBar.y = y + height + 4;
 			_healthBar.value = health;
 
 			_chargeBar.x = _healthBar.x;
 			_chargeBar.y = _healthBar.y + 4;
-			_chargeBar.value = chargeTime / baseChargeTime;
-		}
+			_chargeBar.value = 1 - chargeTime / baseChargeTime;
 
-		super.update(elapsed);
+			if (_playerDef.characterNumber == 0) _itemText.text = "Medpacks:";
+			if (_playerDef.characterNumber == 1) _itemText.text = "Explosions:";
+			if (_playerDef.characterNumber == 2) _itemText.text = "Mines:";
+			if (_playerDef.characterNumber == 3) _itemText.text = "Bait:";
+			_itemText.text += "\n" + charges;
+			_itemText.x = x + width / 2 - _itemText.width / 2;
+			_itemText.y = y - 50;
+			_itemText.visible = _itemShowTime > 0;
+			_itemShowTime -= elapsed;
+		}
 	}
 
 	override public function hurt(damage:Float):Void

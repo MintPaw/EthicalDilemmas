@@ -34,7 +34,9 @@ class GameState extends FlxState
 	private var _zombieGroup:FlxTypedSpriteGroup<Zombie>;
 	private var _bulletGroup:FlxTypedSpriteGroup<Bullet>;
 	private var _medpackGroup:FlxTypedSpriteGroup<FlxSprite>;
+	private var _explosionGroup:FlxTypedSpriteGroup<Explosion>;
 	private var _overlayGroup:FlxGroup;
+
 
 	public function new(playerDefs:Array<PlayerDef>, mapName:String)
 	{
@@ -50,6 +52,7 @@ class GameState extends FlxState
 			_zombieGroup = new FlxTypedSpriteGroup<Zombie>();
 			_bulletGroup = new FlxTypedSpriteGroup<Bullet>();
 			_medpackGroup = new FlxTypedSpriteGroup<FlxSprite>();
+			_explosionGroup = new FlxTypedSpriteGroup<Explosion>();
 			_overlayGroup = new FlxGroup();
 			_zombieSpawnTimer = 0;
 		}
@@ -102,7 +105,7 @@ class GameState extends FlxState
 				var p:Player = new Player(_playerDefs[i]);
 				p.x = (_tilemaps[0].widthInTiles / 2 - 4 + i) * TILE_WIDTH;
 				p.y = _tilemaps[0].heightInTiles / 2 * TILE_HEIGHT;
-				for (addIndex in p.adds) _overlayGroup.add(p.adds[0]);
+				for (obj in p.adds) _overlayGroup.add(obj);
 				p.shootCallback = shoot;
 				p.specialCallback = special;
 				_playerGroup.add(p);
@@ -126,6 +129,7 @@ class GameState extends FlxState
 			add(_zombieGroup);
 			add(_medpackGroup);
 			add(_bulletGroup);
+			add(_explosionGroup);
 
 			add(_tilemaps[3]);
 			add(_collisionMap);
@@ -144,6 +148,8 @@ class GameState extends FlxState
 			FlxG.overlap(_zombieGroup, _bulletGroup, zombieVBullet);
 
 			FlxG.overlap(_playerGroup, _medpackGroup, playerVMedpack);
+
+			FlxG.overlap(_zombieGroup, _explosionGroup, zombieVExplosion);
 		}
 
 		{ // Update zombies
@@ -220,7 +226,7 @@ class GameState extends FlxState
 		_bulletGroup.add(b);
 	}
 
-	public function special(loc:FlxPoint, dir:FlxPoint, type:Float):Void
+	public function special(loc:FlxPoint, dir:FlxPoint, type:Float, player:Player):Void
 	{
 		// Medic
 		if (type == 0)
@@ -236,8 +242,56 @@ class GameState extends FlxState
 			medpack.y = loc.y - medpack.height / 2 + dir.y * 30;
 			medpack.velocity.set(throwVector.x, throwVector.y);
 			medpack.drag.set(1500, 1500);
-
 			_medpackGroup.add(medpack);
+		}
+
+		// Burst
+		if (type == 1)
+		{
+			createExplosion(loc.x, loc.y);
+		}
+
+		// Demo
+		if (type == 2)
+		{
+			if (!player.mine.visible)
+			{
+				player.mine.visible = true;
+
+				var throwVector:FlxPoint = new FlxPoint();
+				throwVector.copyFrom(dir);
+				throwVector.x *= 800;
+				throwVector.y *= 800;
+
+				player.mine.velocity.set(throwVector.x, throwVector.y);
+				player.mine.drag.set(2400, 2400);
+				player.mine.x = loc.x;
+				player.mine.y = loc.y;
+				add(player.mine);
+			} else {
+				player.mine.visible = false;
+
+				createExplosion(player.mine.x, player.mine.y, .25);
+			}
+		}
+	}
+
+	private function createExplosion(xpos:Float, ypos:Float, ratio:Float = 1):Void
+	{
+		var explosion:Explosion = new Explosion();
+		explosion.scale.set(ratio, ratio);
+		explosion.x = xpos - explosion.width / 2;
+		explosion.y = ypos - explosion.height / 2;
+		_explosionGroup.add(explosion);
+
+		for (i in 0..._rnd.int(3, 5))
+		{
+			var smoke:Explosion = new Explosion(true);
+			smoke.scale.set(ratio, ratio);
+			smoke.x = explosion.x + _rnd.float(-20, 20);
+			smoke.y = explosion.y + _rnd.float(-20, 20);
+			smoke.deadly = false;
+			_explosionGroup.add(smoke);
 		}
 	}
 
@@ -256,6 +310,11 @@ class GameState extends FlxState
 	{
 		medpack.kill();
 		cast(player, Player).health = 1;
+	}
+
+	private function zombieVExplosion(zombie:FlxBasic, explosion:FlxBasic):Void
+	{
+		if (cast(explosion, Explosion).deadly) zombie.kill();
 	}
 }
 

@@ -7,7 +7,7 @@ class Zombie extends FlxSprite
 {
 	public static inline var TARGET_TIME:Float = .25;
 	public static inline var ATTACK_TIME:Float = 1;
-	public static inline var ATTACK_RANGE:Float = 20;
+	public static inline var ATTACK_RANGE:Float = 10;
 	public static inline var DAMAGE:Float = .02;
 
 	public var targetTime:Float = 0;
