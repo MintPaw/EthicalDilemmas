@@ -4,6 +4,7 @@ import openfl.Assets;
 import flixel.FlxG;
 import flixel.FlxState;
 import flixel.FlxSprite;
+import flixel.FlxSprite;
 import flixel.group.FlxSpriteGroup;
 import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
@@ -136,7 +137,7 @@ class GameState extends FlxState
 					spawnPoint.y = spawnPoint.y * TILE_WIDTH + _rnd.float(-20, 20);
 
 					var z:Zombie = new Zombie();
-					z.currentTarget = cast(_rnd.getObject(_playerGroup.members), FlxSprite);
+					z.currentTarget = _playerGroup.members[0];
 					z.x = spawnPoint.x;
 					z.y = spawnPoint.y;
 					_zombieGroup.add(z);
@@ -146,16 +147,18 @@ class GameState extends FlxState
 			{ // Retargeting
 				for (zombie in _zombieGroup.members)
 				{
-					var closest:Player = _playerGroup.members[0];
-
-					for (player in _playerGroup.members)
+					zombie.targetTime -= elapsed;
+					if (zombie.targetTime <= 0)
 					{
-						if (FlxMath.distanceBetween(zombie, player) < FlxMath.distanceBetween(zombie, closest)) closest = player;
-					}
+						zombie.targetTime = Zombie.TARGET_TIME;
 
-					if (closest != zombie.currentTarget)
-					{
-						zombie.currentTarget = closest;
+						for (player in _playerGroup.members)
+						{
+							if (FlxMath.distanceBetween(zombie, player) < FlxMath.distanceBetween(zombie, zombie.currentTarget)) zombie.currentTarget = player;
+						}
+
+						zombie.path.cancel();
+						zombie.path.start(zombie, _collisionMap.findPath(zombie.getMidpoint(), zombie.currentTarget.getMidpoint()), 100);
 					}
 				}
 			}
