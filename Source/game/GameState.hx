@@ -41,6 +41,8 @@ class GameState extends FlxState
 
 	private var _baitEmitter:FlxEmitter;
 
+	private var _hud:Hud;
+
 	public function new(playerDefs:Array<PlayerDef>, mapName:String)
 	{
 		super();
@@ -80,25 +82,19 @@ class GameState extends FlxState
 			var super_top:String = all.split("<data encoding=\"csv\">")[4];
 			super_top = super_top.split("</data>")[0];
 
-			_collisionMap = new FlxTilemap();
-			_collisionMap.visible = false;
 
 			for (i in 0...4) _tilemaps.push(new FlxTilemap());
-			
-			_collisionMap.loadMapFromCSV(top, Assets.getBitmapData("Assets/img/tilemap.png"), 32, 32, null, 1);
 
-			_tilemaps[0].loadMapFromCSV(bot, Assets.getBitmapData("Assets/img/tilemap.png"), 32, 32, null, 1);
-			_tilemaps[1].loadMapFromCSV(mid, Assets.getBitmapData("Assets/img/tilemap.png"), 32, 32, null, 1);
-			_tilemaps[2].loadMapFromCSV(top, Assets.getBitmapData("Assets/img/tilemap.png"), 32, 32, null, 1);
-			_tilemaps[3].loadMapFromCSV(super_top, Assets.getBitmapData("Assets/img/tilemap.png"), 32, 32, null, 1);
+			_tilemaps[0].loadMapFromCSV(bot, Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
+			_tilemaps[1].loadMapFromCSV(mid, Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
+			_tilemaps[2].loadMapFromCSV(top, Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
+			_tilemaps[3].loadMapFromCSV(super_top, Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
 
-			for (tilemapNumber in 1...3)
-			{
-				var mapData:Array<Int> = _tilemaps[tilemapNumber].getData(true);
-				for (tileNumber in 0...mapData.length)
-				{
-					if (mapData[tileNumber] == 1) _collisionMap.setTileByIndex(tileNumber, mapData[tileNumber]);
-				}
+			{ // Collision map
+				_collisionMap = new FlxTilemap();
+				_collisionMap.visible = false;
+
+				buildCollisionMap();
 			}
 
 		}
@@ -119,12 +115,17 @@ class GameState extends FlxState
 			}
 		}
 
-		{ // Create zombie spawns
+		{ // Setup zombie spawns
 			_zombieSpawns = [];
 			_zombieSpawns.push(new FlxPoint(1, 1));
 			_zombieSpawns.push(new FlxPoint(1, _tilemaps[0].heightInTiles - 2));
 			_zombieSpawns.push(new FlxPoint(_tilemaps[0].widthInTiles - 2, 1));
 			_zombieSpawns.push(new FlxPoint(_tilemaps[0].widthInTiles - 2, _tilemaps[0].heightInTiles - 2));
+		}
+
+		{
+			_hud = new Hud(_playerDefs.length);
+			_overlayGroup.add(_hud);
 		}
 
 		{ // Add groups
@@ -190,25 +191,6 @@ class GameState extends FlxState
 						zombie.targetTime = Zombie.TARGET_TIME;
 						zombie.currentTarget = null;
 
-						/*for (player in _playerGroup.members)
-						{
-							for (part in player.emitter)
-							{
-								if (part.health <= 0) continue;
-								if (FlxMath.distanceBetween(zombie, part) < FlxMath.distanceBetween(zombie, zombie.currentTarget)) zombie.currentTarget = part;
-							}
-
-							if (player.health <= 0) continue;
-							if (FlxMath.distanceBetween(zombie, player) < FlxMath.distanceBetween(zombie, zombie.currentTarget)) zombie.currentTarget = player;
-						}
-
-						zombie.path.cancel();
-						if (zombie.currentTarget != null && FlxMath.distanceBetween(zombie, zombie.currentTarget) > Zombie.ATTACK_RANGE)
-							zombie.path.start(zombie, _collisionMap.findPath(zombie.getMidpoint(), zombie.currentTarget.getMidpoint()), 50);
-					}
-
-					if (zombie.currentTarget != null && zombie.currentTarget.health <= 0) zombie.currentTarget = null;*/
-
 						var targets:Array<FlxSprite> = [];
 
 						for (player in _playerGroup.members)
@@ -248,8 +230,12 @@ class GameState extends FlxState
 		{ // Update player
 			for (player in _playerGroup.members)
 			{
-
+				if (player.health > 0) player.score += elapsed;
 			}
+		}
+
+		{ // Update misc
+			_hud.updateInfo(_playerGroup.members);
 		}
 
 		super.update(elapsed);
@@ -310,7 +296,7 @@ class GameState extends FlxState
 				add(player.mine);
 			} else {
 				player.mine.visible = false;
-				createExplosion(player.mine.x, player.mine.y, .25);
+				createExplosion(player.mine.x, player.mine.y, .25, true);
 			}
 		}
 
@@ -330,12 +316,14 @@ class GameState extends FlxState
 		}
 	}
 
-	private function createExplosion(xpos:Float, ypos:Float, ratio:Float = 1):Void
+	private function createExplosion(xpos:Float, ypos:Float, ratio:Float = 1, destoryTerrain:Bool = false):Void
 	{
 		var explosion:Explosion = new Explosion();
-		explosion.scale.set(ratio, ratio);
 		explosion.x = xpos - explosion.width / 2;
 		explosion.y = ypos - explosion.height / 2;
+		explosion.scale.set(ratio, ratio);
+		explosion.width *= ratio;
+		explosion.height *= ratio;
 		_explosionGroup.add(explosion);
 
 		for (i in 0..._rnd.int(3, 5))
@@ -346,6 +334,60 @@ class GameState extends FlxState
 			smoke.y = explosion.y + _rnd.float(-20, 20);
 			smoke.deadly = false;
 			_explosionGroup.add(smoke);
+		}
+
+		if (destoryTerrain)
+		{
+			var tilemaps:Array<FlxTilemap> = [_tilemaps[1], _tilemaps[2]];
+			var centreTileX:Int = Std.int(xpos / TILE_WIDTH);
+			var centreTileY:Int = Std.int(ypos / TILE_HEIGHT);
+
+			for (tilemap in tilemaps)
+			{
+				tilemap.setTile(centreTileX, centreTileY, 0);
+				tilemap.setTile(centreTileX + 1, centreTileY, 0);
+				tilemap.setTile(centreTileX - 1, centreTileY, 0);
+				tilemap.setTile(centreTileX, centreTileY + 1, 0);
+				tilemap.setTile(centreTileX, centreTileY - 1, 0);
+				tilemap.setTile(centreTileX - 1, centreTileY - 1, 0);
+				tilemap.setTile(centreTileX + 1, centreTileY + 1, 0);
+				tilemap.setTile(centreTileX + 1, centreTileY - 1, 0);
+				tilemap.setTile(centreTileX - 1, centreTileY + 1, 0);
+			}
+
+			buildCollisionMap();
+		}
+	}
+
+	private function buildCollisionMap():Void
+	{
+		var collisionString:String = "";
+
+		for (tileY in 0...Std.int(FlxG.height / TILE_HEIGHT * 2))
+		{
+			for (tileX in 0...Std.int(FlxG.width / TILE_WIDTH * 2)) collisionString += "0,";
+			collisionString = collisionString.substr(0, collisionString.length - 1);
+			collisionString += "\n";
+		}
+
+		collisionString = collisionString.substr(0, collisionString.length - 1);
+
+		_collisionMap.loadMapFromCSV(collisionString, Assets.getBitmapData("Assets/img/tilemap.png"), Std.int(TILE_WIDTH / 2), Std.int(TILE_HEIGHT / 2), null, 1);
+
+		for (tilemapNumber in 1...3)
+		{
+			for (tileX in 0..._tilemaps[tilemapNumber].widthInTiles)
+			{
+				for (tileY in 0..._tilemaps[tilemapNumber].heightInTiles)
+
+				if (_tilemaps[tilemapNumber].getTile(tileX, tileY) != 0)
+				{
+					_collisionMap.setTile(tileX * 2, tileY * 2, 1);
+					_collisionMap.setTile(tileX * 2 + 1, tileY * 2, 1);
+					_collisionMap.setTile(tileX * 2, tileY * 2 + 1, 1);
+					_collisionMap.setTile(tileX * 2 + 1, tileY * 2 + 1, 1);
+				}
+			}
 		}
 	}
 

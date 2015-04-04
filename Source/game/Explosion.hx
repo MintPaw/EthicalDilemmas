@@ -24,8 +24,8 @@ class Explosion extends FlxSprite
 		} else {
 			makeGraphic(200, 200, 0xFFCC3333);
 			deadly = true;
-			_fadeTime = 3;
-			_totalFadeTime = 3;
+			_fadeTime = 1;
+			_totalFadeTime = 1;
 		}
 	}
 

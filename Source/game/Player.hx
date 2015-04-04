@@ -20,6 +20,8 @@ class Player extends FlxSprite
 	public var baseBulletTime:Float;
 	public var baseBulletDamage:Float;
 
+	public var title:String;
+	public var score:Float = 0;
 	public var mine:FlxSprite;
 	public var emitter:FlxEmitter;
 
@@ -50,7 +52,7 @@ class Player extends FlxSprite
 		_playerDef = playerDef;
 
 		drag.set(maxVelocity.x * 8, maxVelocity.y * 8);
-		charges = 1; //TODO(jeru): Set to 0
+  		charges = 1; //TODO(jeru): Set to 0
 
 		_healthBar = new FlxBar(0, 0, null, 20, 2, null, "", 0, 1);
 		_healthBar.createFilledBar(0xFF147800, 0xFF2BFF00);
@@ -80,45 +82,52 @@ class Player extends FlxSprite
 		// Medic
 		if (_playerDef.characterNumber == 0)
 		{
+			title = "Medic";
 			colour = 0xFF0000FF;
 			baseChargeTime = 10;
 			maxCharges = 5;
-			baseBulletTime = .4;
-			baseBulletDamage = .2;
+			baseBulletTime = 1;
+			baseBulletDamage = .4;
 		}
 
-		// Burst
+		// Explosion Man
 		if (_playerDef.characterNumber == 1)
 		{
+			title = "Explosion Man";
 			colour = 0xFFFF0000;
 			baseChargeTime = 20;
 			maxCharges = 3;
-			baseBulletTime = .15;
-			baseBulletDamage = .3;
+			baseBulletTime = .4;
+			baseBulletDamage = .2;
 		}
 
 		// Demo
 		if (_playerDef.characterNumber == 2)
 		{
+			title = "Demolition Guy";
 			colour = 0xFFFF00FF;
 			baseChargeTime = 10;
 			maxCharges = 10;
 			baseBulletTime = .1;
-			baseBulletDamage = .4;
+			baseBulletDamage = .1;
 		}
 
 		// Bait
 		if (_playerDef.characterNumber == 3)
 		{
+			title = "Baiter";
 			colour = 0xFFFFFF00;
 			baseChargeTime = 10;
 			maxCharges = 10;
 			baseBulletTime = .05;
-			baseBulletDamage = .2;
+			baseBulletDamage = .05;
 		}
 
 		chargeTime = baseChargeTime;
 		makeGraphic(10, 10, colour);
+
+		var dps:Float = baseBulletDamage * 1/baseBulletTime;
+		trace("dps for " + title + ": " + dps);
 	}
 
 	override public function update(elapsed:Float):Void
