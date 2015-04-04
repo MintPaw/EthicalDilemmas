@@ -1,15 +1,17 @@
 package game;
 
-import openfl.Assets;
+import flixel.FlxBasic;
 import flixel.FlxG;
+import flixel.FlxObject;
 import flixel.FlxState;
 import flixel.FlxSprite;
-import flixel.FlxSprite;
+import flixel.group.FlxGroup;
 import flixel.group.FlxSpriteGroup;
 import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
 import flixel.math.FlxRandom;
 import flixel.tile.FlxTilemap;
+import openfl.Assets;
 
 class GameState extends FlxState
 {
@@ -30,6 +32,9 @@ class GameState extends FlxState
 
 	private var _playerGroup:FlxTypedSpriteGroup<Player>;
 	private var _zombieGroup:FlxTypedSpriteGroup<Zombie>;
+	private var _bulletGroup:FlxTypedSpriteGroup<Bullet>;
+	private var _medpackGroup:FlxTypedSpriteGroup<FlxSprite>;
+	private var _overlayGroup:FlxGroup;
 
 	public function new(playerDefs:Array<PlayerDef>, mapName:String)
 	{
@@ -43,6 +48,9 @@ class GameState extends FlxState
 	{
 		{ // Create misc vars
 			_zombieGroup = new FlxTypedSpriteGroup<Zombie>();
+			_bulletGroup = new FlxTypedSpriteGroup<Bullet>();
+			_medpackGroup = new FlxTypedSpriteGroup<FlxSprite>();
+			_overlayGroup = new FlxGroup();
 			_zombieSpawnTimer = 0;
 		}
 
@@ -83,6 +91,7 @@ class GameState extends FlxState
 					if (mapData[tileNumber] == 1) _collisionMap.setTileByIndex(tileNumber, mapData[tileNumber]);
 				}
 			}
+
 		}
 
 		{ // Create players
@@ -93,7 +102,9 @@ class GameState extends FlxState
 				var p:Player = new Player(_playerDefs[i]);
 				p.x = (_tilemaps[0].widthInTiles / 2 - 4 + i) * TILE_WIDTH;
 				p.y = _tilemaps[0].heightInTiles / 2 * TILE_HEIGHT;
+				for (addIndex in p.adds) _overlayGroup.add(p.adds[0]);
 				p.shootCallback = shoot;
+				p.specialCallback = special;
 				_playerGroup.add(p);
 			}
 		}
@@ -110,10 +121,15 @@ class GameState extends FlxState
 			add(_tilemaps[0]);
 			add(_tilemaps[1]);
 			add(_tilemaps[2]);
+
 			add(_playerGroup);
 			add(_zombieGroup);
+			add(_medpackGroup);
+			add(_bulletGroup);
+
 			add(_tilemaps[3]);
 			add(_collisionMap);
+			add(_overlayGroup);
 		}
 
 	}
@@ -121,7 +137,13 @@ class GameState extends FlxState
 	override public function update(elapsed:Float):Void
 	{
 		{ // Update collision
-			FlxG.collide(_collisionMap, _playerGroup);
+			FlxG.collide(_playerGroup, _collisionMap);
+			FlxG.collide(_medpackGroup, _collisionMap);
+
+			FlxG.collide(_collisionMap, mapVBullet);
+			FlxG.overlap(_zombieGroup, _bulletGroup, zombieVBullet);
+
+			FlxG.overlap(_playerGroup, _medpackGroup, playerVMedpack);
 		}
 
 		{ // Update zombies
@@ -188,22 +210,58 @@ class GameState extends FlxState
 		super.update(elapsed);
 	}
 
-	public function shoot(loc:FlxPoint, dir:FlxPoint):Void
+	public function shoot(loc:FlxPoint, dir:FlxPoint, damage:Float):Void
 	{
-		var b:FlxSprite = new FlxSprite();
-		b.makeGraphic(3, 3, 0xFF000000);
+		var b:Bullet = new Bullet();
+		b.damage = damage;
 		b.x = loc.x - b.width / 2;
 		b.y = loc.y - b.height / 2;
-		b.velocity.x = dir.x;
-		b.velocity.y = dir.y;
-		add(b);
+		b.velocity.set(dir.x, dir.y);
+		_bulletGroup.add(b);
+	}
+
+	public function special(loc:FlxPoint, dir:FlxPoint, type:Float):Void
+	{
+		// Medic
+		if (type == 0)
+		{
+			var throwVector:FlxPoint = new FlxPoint();
+			throwVector.copyFrom(dir);
+			throwVector.x *= 500;
+			throwVector.y *= 500;
+
+			var medpack:FlxSprite = new FlxSprite();
+			medpack.makeGraphic(20, 20, 0xFFFFFFFF);
+			medpack.x = loc.x - medpack.width / 2 + dir.x * 30;
+			medpack.y = loc.y - medpack.height / 2 + dir.y * 30;
+			medpack.velocity.set(throwVector.x, throwVector.y);
+			medpack.drag.set(1500, 1500);
+
+			_medpackGroup.add(medpack);
+		}
+	}
+
+	private function zombieVBullet(zombie:FlxBasic, bullet:FlxBasic):Void
+	{
+		cast(zombie, Zombie).hurt(cast(bullet).damage);
+		bullet.kill();
+	}
+
+	private function mapVBullet(map:FlxBasic, bullet:FlxBasic):Void
+	{
+		bullet.kill();
+	}
+
+	private function playerVMedpack(player:FlxBasic, medpack:FlxBasic):Void
+	{
+		medpack.kill();
+		cast(player, Player).health = 1;
 	}
 }
 
 
 typedef PlayerDef = 
 {
-	playerNumber:Int,
 	controllerNumber:Int,
 	characterNumber:Int
 }

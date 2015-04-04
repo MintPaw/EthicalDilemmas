@@ -8,7 +8,7 @@ class Zombie extends FlxSprite
 	public static inline var TARGET_TIME:Float = .25;
 	public static inline var ATTACK_TIME:Float = 1;
 	public static inline var ATTACK_RANGE:Float = 20;
-	public static inline var DAMAGE:Float = .1;
+	public static inline var DAMAGE:Float = .02;
 
 	public var targetTime:Float = 0;
 	public var attackTime:Float = 0;
@@ -20,5 +20,11 @@ class Zombie extends FlxSprite
 		super();
 
 		makeGraphic(10, 10, 0xFF00FF00);
+	}
+
+	override public function hurt(damage:Float):Void
+	{
+		path.cancel();
+		super.hurt(damage);
 	}
 }
