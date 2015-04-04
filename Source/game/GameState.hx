@@ -93,6 +93,7 @@ class GameState extends FlxState
 				var p:Player = new Player(_playerDefs[i]);
 				p.x = (_tilemaps[0].widthInTiles / 2 - 4 + i) * TILE_WIDTH;
 				p.y = _tilemaps[0].heightInTiles / 2 * TILE_HEIGHT;
+				p.shootCallback = shoot;
 				_playerGroup.add(p);
 			}
 		}
@@ -144,9 +145,9 @@ class GameState extends FlxState
 				}
 			}
 
-			{ // Retargeting
-				for (zombie in _zombieGroup.members)
-				{
+			for (zombie in _zombieGroup.members)
+			{
+				{ // Retargeting
 					zombie.targetTime -= elapsed;
 					if (zombie.targetTime <= 0)
 					{
@@ -158,13 +159,44 @@ class GameState extends FlxState
 						}
 
 						zombie.path.cancel();
-						zombie.path.start(zombie, _collisionMap.findPath(zombie.getMidpoint(), zombie.currentTarget.getMidpoint()), 100);
+						if (FlxMath.distanceBetween(zombie, zombie.currentTarget) > Zombie.ATTACK_RANGE)
+							zombie.path.start(zombie, _collisionMap.findPath(zombie.getMidpoint(), zombie.currentTarget.getMidpoint()), 50);
+					}
+				}
+
+				{ // Attacking
+					zombie.attackTime -= elapsed;
+					if (zombie.attackTime <= 0)
+					{
+						if (FlxMath.distanceBetween(zombie, zombie.currentTarget) <= Zombie.ATTACK_RANGE)
+						{
+							zombie.attackTime = Zombie.ATTACK_TIME;
+							zombie.currentTarget.hurt(Zombie.DAMAGE);
+						}
 					}
 				}
 			}
 		}
 
+		{ // Update player
+			for (player in _playerGroup.members)
+			{
+
+			}
+		}
+
 		super.update(elapsed);
+	}
+
+	public function shoot(loc:FlxPoint, dir:FlxPoint):Void
+	{
+		var b:FlxSprite = new FlxSprite();
+		b.makeGraphic(3, 3, 0xFF000000);
+		b.x = loc.x - b.width / 2;
+		b.y = loc.y - b.height / 2;
+		b.velocity.x = dir.x;
+		b.velocity.y = dir.y;
+		add(b);
 	}
 }
 
