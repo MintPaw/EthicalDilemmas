@@ -322,7 +322,7 @@ class GameState extends FlxState
 			throwVector.y *= 500;
 
 			var medpack:FlxSprite = new FlxSprite();
-			medpack.makeGraphic(20, 20, 0xFFFFFFFF);
+			medpack.loadGraphic("Assets/img/healthpack.png");
 			medpack.x = loc.x - medpack.width / 2 + dir.x * 30;
 			medpack.y = loc.y - medpack.height / 2 + dir.y * 30;
 			medpack.velocity.set(throwVector.x, throwVector.y);
