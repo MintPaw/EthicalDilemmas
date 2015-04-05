@@ -38,7 +38,7 @@ class Hud extends FlxSpriteGroup
 	{
 		for (text in _texts)
 		{
-			FlxTween.tween(text.scale, { x: 3, y: 3 }, 1, { ease: FlxEase.elasticOut });
+			FlxTween.tween(text.scale, { x: 3, y: 3 }, 1, { ease: FlxEase.circOut });
 		}
 	}
 
@@ -46,7 +46,7 @@ class Hud extends FlxSpriteGroup
 	{
 		for (text in _texts)
 		{
-			FlxTween.tween(text.scale, { x: 1, y: 1 }, 1, { ease: FlxEase.elasticOut });
+			FlxTween.tween(text.scale, { x: 1, y: 1 }, 1, { ease: FlxEase.circOut });
 		}
 	}
 }

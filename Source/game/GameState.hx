@@ -37,6 +37,7 @@ class GameState extends FlxState
 
 	private var _playerDefs:Array<PlayerDef>;
 	private var _mapName:String;
+	private var _restarting:Bool;
 
 	private var _zombieSpawns:Array<FlxPoint>;
 	private var _zombieSpawnTimer:Float;
@@ -52,13 +53,14 @@ class GameState extends FlxState
 
 	private var _hud:Hud;
 
-	public function new(playerDefs:Array<PlayerDef>, mapName:String, totalRounds:Int)
+	public function new(playerDefs:Array<PlayerDef>, mapName:String, totalRounds:Int, currentRound:Int = 0)
 	{
 		super();
 
 		_playerDefs = playerDefs;
 		_mapName = mapName;
 		_totalRounds = totalRounds;
+		_currentRound = currentRound;
 	}
 
 	override public function create():Void
@@ -71,6 +73,7 @@ class GameState extends FlxState
 			_overlayGroup = new FlxGroup();
 			_zombieSpawnTimer = 0;
 			_currentRound = 0;
+			_restarting = false;
 
 			_baitEmitter = new FlxEmitter(0, 0, 10);
 			_baitEmitter.speed.set(50, 100);
@@ -98,7 +101,6 @@ class GameState extends FlxState
 
 			var super_top:String = all.split("<data encoding=\"csv\">")[4];
 			super_top = super_top.split("</data>")[0];
-
 
 			for (i in 0...4) _tilemaps.push(new FlxTilemap());
 
@@ -154,6 +156,20 @@ class GameState extends FlxState
 			add(_tilemaps[3]);
 			add(_collisionMap);
 			add(_overlayGroup);
+		}
+
+		{ // Load save
+			if (save != null)
+			{
+				for (i in 0...save.get("scores").length) _playerGroup.members[i].score = save.get("scores")[i];
+				for (i in 0...save.get("charges").length) _playerGroup.members[i].charges = save.get("charges")[i];
+				for (i in 0...save.get("chargeTimes").length) _playerGroup.members[i].chargeTime = save.get("chargeTimes")[i];
+				for (i in 0...save.get("tilemaps").length)
+				{
+					_tilemaps[i].reset(0, 0);
+					_tilemaps[i].loadMapFromCSV(save.get("tilemaps")[i], Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
+				}
+			}
 		}
 	}
 
@@ -243,6 +259,8 @@ class GameState extends FlxState
 			{
 				if (player.health > 0) player.score += elapsed / (_playerGroup.countLiving() / _playerGroup.members.length);
 			}
+
+			if (_playerGroup.countLiving() == 1) showScores();
 		}
 
 		{ // Update misc
@@ -349,21 +367,28 @@ class GameState extends FlxState
 
 		if (destoryTerrain)
 		{
-			var tilemaps:Array<FlxTilemap> = [_tilemaps[1], _tilemaps[2]];
 			var centreTileX:Int = Std.int(xpos / TILE_WIDTH);
 			var centreTileY:Int = Std.int(ypos / TILE_HEIGHT);
+			var points:Array<FlxPoint> = [];
 
-			for (tilemap in tilemaps)
+			points.push(new FlxPoint(centreTileX, centreTileY));
+			points.push(new FlxPoint(centreTileX + 1, centreTileY));
+			points.push(new FlxPoint(centreTileX - 1, centreTileY));
+			points.push(new FlxPoint(centreTileX, centreTileY + 1));
+			points.push(new FlxPoint(centreTileX, centreTileY - 1));
+			points.push(new FlxPoint(centreTileX - 1, centreTileY - 1));
+			points.push(new FlxPoint(centreTileX + 1, centreTileY + 1));
+			points.push(new FlxPoint(centreTileX + 1, centreTileY - 1));
+			points.push(new FlxPoint(centreTileX - 1, centreTileY + 1));
+
+			for (tile in points)
 			{
-				tilemap.setTile(centreTileX, centreTileY, 0);
-				tilemap.setTile(centreTileX + 1, centreTileY, 0);
-				tilemap.setTile(centreTileX - 1, centreTileY, 0);
-				tilemap.setTile(centreTileX, centreTileY + 1, 0);
-				tilemap.setTile(centreTileX, centreTileY - 1, 0);
-				tilemap.setTile(centreTileX - 1, centreTileY - 1, 0);
-				tilemap.setTile(centreTileX + 1, centreTileY + 1, 0);
-				tilemap.setTile(centreTileX + 1, centreTileY - 1, 0);
-				tilemap.setTile(centreTileX - 1, centreTileY + 1, 0);
+				if (
+					tile.x >= 0 &&
+					tile.y >= 0 &&
+					tile.x <= _tilemaps[1].widthInTiles - 1 &&
+					tile.y <= _tilemaps[1].heightInTiles - 1)
+						_tilemaps[1].setTile(Std.int(tile.x), Std.int(tile.y), 0);
 			}
 
 			buildCollisionMap();
@@ -403,8 +428,14 @@ class GameState extends FlxState
 
 	private function showScores():Void
 	{
-		new FlxTimer().start(5, restartRound);
-		//_hud.enlage();
+		if (_restarting) return;
+		_restarting = true;
+
+		trace("Restarting");
+
+		new FlxTimer().start(7, restartRound);
+		new FlxTimer().start(5, function f(t:FlxTimer) { _hud.shrink(); } );
+		_hud.enlage();
 	}
 
 	private function restartRound(t:FlxTimer = null):Void
@@ -426,6 +457,8 @@ class GameState extends FlxState
 		}
 
 		for (tilemap in _tilemaps) save.get("tilemaps").push(tilemap);
+
+		FlxG.switchState(new GameState(_playerDefs, _mapName, _totalRounds, _currentRound));
 	}
 
 	private function zombieVBullet(zombie:FlxBasic, bullet:FlxBasic):Void

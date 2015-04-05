@@ -49,6 +49,8 @@ class Player extends FlxSprite
 	{
 		super();
 
+		health = .0001;
+
 		_playerDef = playerDef;
 
 		drag.set(maxVelocity.x * 8, maxVelocity.y * 8);
@@ -126,8 +128,8 @@ class Player extends FlxSprite
 		chargeTime = baseChargeTime;
 		makeGraphic(10, 10, colour);
 
-		var dps:Float = baseBulletDamage * 1/baseBulletTime;
-		trace("dps for " + title + ": " + dps);
+		//var dps:Float = baseBulletDamage * 1/baseBulletTime;
+		//trace("dps for " + title + ": " + dps);
 	}
 
 	override public function update(elapsed:Float):Void
@@ -277,5 +279,6 @@ class Player extends FlxSprite
 	override public function kill():Void
 	{
 		for (item in adds) item.kill();
+		super.kill();
 	}
 }
