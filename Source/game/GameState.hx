@@ -212,7 +212,7 @@ class GameState extends FlxState
 				_zombieSpawnTimer -= elapsed;
 				if (_zombieSpawnTimer <= 0)
 				{
-					_zombieSpawnTimer = ZOMBIE_TIMER * 1 / _diff;
+					_zombieSpawnTimer = ZOMBIE_TIMER * (1 / _diff);
 
 					var spawnPoint:FlxPoint = new FlxPoint();
 					_rnd.getObject(_zombieSpawns).copyTo(spawnPoint);
@@ -291,7 +291,8 @@ class GameState extends FlxState
 
 		{ // Update misc
 			_hud.updateInfo(_playerGroup.members);
-			_diff += _diff * (.01 * _playerGroup.countLiving() + 1) - 1;
+			_diff += (.00001 * _playerGroup.countLiving() + 1) - 1;
+			trace(_diff);
 		}
 
 		super.update(elapsed);

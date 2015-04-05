@@ -24,6 +24,7 @@ class PlayerSelect extends FlxSpriteGroup
 
 	private var _texts:Array<FlxText> = [];
 	private var _oldStickPos:Float = 0;
+	private var _frames:Int = 0;
 
 	public function new(controllerNumber:Int)
 	{
@@ -43,25 +44,27 @@ class PlayerSelect extends FlxSpriteGroup
 
 	override public function update(elapsed:Float):Void
 	{
-		for (text in _texts) text.color = 0xFFFFFFFF;
-		_texts[selection].color = 0xFFFF5555;
+		_frames++;
 
-		if (!selected)
+		for (text in _texts) text.color = 0xFF555555;
+		_texts[selection].color = 0xFFFFFFFF;
+
+		if (!selected && _frames >= 2)
 		{
 			if (controllerNumber == -1)
 			{
 				if (FlxG.keys.justPressed.UP && selection > 0) selection--;
-				if (FlxG.keys.justPressed.DOWN && selection < _texts.length) selection++;
+				if (FlxG.keys.justPressed.DOWN && selection < _texts.length - 1) selection++;
 				if ((FlxG.keys.justPressed.SPACE || FlxG.keys.justPressed.Z) && selection < _texts.length) select();
 			} else {
 				var pad:FlxGamepad = FlxG.gamepads.getByID(controllerNumber);
 				if (pad == null) return;
 
-				if (pad.getAxis(1) < -DEAD_ZONE && _oldStickPos > -DEAD_ZONE && selection < _texts.length) selection++;
-				if (pad.getAxis(1) > DEAD_ZONE && _oldStickPos < DEAD_ZONE && selection > 0) selection--;
+				if (pad.getAxis(1) < -DEAD_ZONE && _oldStickPos > -DEAD_ZONE && selection > 0) selection--;
+				if (pad.getAxis(1) > DEAD_ZONE && _oldStickPos < DEAD_ZONE && selection < _texts.length - 1) selection++;
 				if (pad.justPressed(XboxButtonID.A)) select();
 
-				_oldStickPos = pad.getAxis(0);
+				_oldStickPos = pad.getAxis(1);
 			}
 		}
 
