@@ -161,16 +161,20 @@ class GameState extends FlxState
 		{ // Load save
 			if (save != null)
 			{
+				FlxG.camera.fade(0xFFFFFFFF, .5, true, null, false);
 				for (i in 0...save.get("scores").length) _playerGroup.members[i].score = save.get("scores")[i];
 				for (i in 0...save.get("charges").length) _playerGroup.members[i].charges = save.get("charges")[i];
 				for (i in 0...save.get("chargeTimes").length) _playerGroup.members[i].chargeTime = save.get("chargeTimes")[i];
 				for (i in 0...save.get("tilemaps").length)
 				{
 					_tilemaps[i].reset(0, 0);
-					_tilemaps[i].loadMapFromCSV(save.get("tilemaps")[i], Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
+					_tilemaps[i].loadMapFromArray(save.get("tilemaps")[i], 30, 16, Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
 				}
+			} else {
+				FlxG.camera.fade(0xFF000000, .5, true, null, false);
 			}
 		}
+
 	}
 
 	override public function update(elapsed:Float):Void
@@ -185,6 +189,8 @@ class GameState extends FlxState
 			FlxG.overlap(_playerGroup, _medpackGroup, playerVMedpack);
 
 			FlxG.overlap(_explosionGroup, _zombieGroup, explotsionVZombie);
+
+			for (player in _playerGroup.members) FlxG.collide(player.mine, _collisionMap);
 		}
 
 		{ // Update zombies
@@ -257,6 +263,7 @@ class GameState extends FlxState
 		{ // Update player
 			for (player in _playerGroup.members)
 			{
+				if (_restarting) break;
 				if (player.health > 0) player.score += elapsed / (_playerGroup.countLiving() / _playerGroup.members.length);
 			}
 
@@ -433,8 +440,9 @@ class GameState extends FlxState
 
 		trace("Restarting");
 
-		new FlxTimer().start(7, restartRound);
 		new FlxTimer().start(5, function f(t:FlxTimer) { _hud.shrink(); } );
+		new FlxTimer().start(5.5, function f(t:FlxTimer) { FlxG.camera.fade(0xFFFFFFFF, .5); });
+		new FlxTimer().start(6, restartRound);
 		_hud.enlage();
 	}
 
@@ -456,7 +464,7 @@ class GameState extends FlxState
 			save.get("chargeTimes").push(player.chargeTime);
 		}
 
-		for (tilemap in _tilemaps) save.get("tilemaps").push(tilemap);
+		for (tilemap in _tilemaps) save.get("tilemaps").push(tilemap.getData());
 
 		FlxG.switchState(new GameState(_playerDefs, _mapName, _totalRounds, _currentRound));
 	}

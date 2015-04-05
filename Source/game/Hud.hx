@@ -19,7 +19,7 @@ class Hud extends FlxSpriteGroup
 		for (i in 0...players)
 		{
 			var t:FlxText = new FlxText(0, 0, FlxG.width, "PLAYER NAME: XXXpt.", 8 * 1.5);
-			t.y = (t.height + 3) * i;
+			t.y = (t.height + 5) * i;
 			add(t);
 
 			_texts.push(t);
@@ -38,7 +38,7 @@ class Hud extends FlxSpriteGroup
 	{
 		for (text in _texts)
 		{
-			FlxTween.tween(text.scale, { x: 3, y: 3 }, 1, { ease: FlxEase.circOut });
+			FlxTween.tween(text, { size: 8 * 5, y: text.y * 5 }, .5);
 		}
 	}
 
@@ -46,7 +46,7 @@ class Hud extends FlxSpriteGroup
 	{
 		for (text in _texts)
 		{
-			FlxTween.tween(text.scale, { x: 1, y: 1 }, 1, { ease: FlxEase.circOut });
+			FlxTween.tween(text, { size: 8 * 1.5, y: text.y / 5 }, .5);
 		}
 	}
 }

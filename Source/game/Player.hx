@@ -70,6 +70,7 @@ class Player extends FlxSprite
 		adds.push(_itemText);
 
 		mine = new FlxSprite();
+		mine.elasticity = .8;
 		mine.makeGraphic(5, 5, 0xFFFF8800);
 		mine.visible = false;
 
