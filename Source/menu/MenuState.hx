@@ -69,13 +69,15 @@ class MenuState extends FlxState
 
 			{ // Countdown
 				var locks:Int = 0;
+				var unlocked:Int = 0;
 				for (select in _playerSelects)
 				{
-					if (select.selected) locks++;
+					if (select.selected) locks++ else unlocked++;
 				}
 
 				if (locks == 1) _infoText.text = "You need at least 2 players!";
-				if (locks > 1 && _countdown == 6) _countdown = 5;
+				if (unlocked > 0) _countdown = 6;
+				if (locks > 1 && _countdown == 6 && unlocked == 0) _countdown = 5;
 				if (_countdown <= 5)
 				{
 					_countdown -= elapsed;
@@ -95,7 +97,7 @@ class MenuState extends FlxState
 				}
 			}
 		} else {
-			{ // Input map select
+			{ // Map select
 				var left:Bool = false;
 				var right:Bool = false;
 				var select:Bool = false;

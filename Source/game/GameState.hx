@@ -25,7 +25,7 @@ class GameState extends FlxState
 
 	public static var save:Map<String, Dynamic>;
 
-	private var _currentRound:Int;
+	private var _currentRound:Int = 0;
 	private var _totalRounds:Int;
 	private var _diff:Float;
 
@@ -33,6 +33,7 @@ class GameState extends FlxState
 
 	private var _tilemaps:Array<FlxTilemap>;
 	private var _collisionMap:FlxTilemap;
+	private var _bulletCollisionMap:FlxTilemap;
 	private var _collisionMapDefs:Array<Array<Int>>;
 
 	private var _playerDefs:Array<PlayerDef>;
@@ -72,7 +73,6 @@ class GameState extends FlxState
 			_baitGroup = new FlxTypedSpriteGroup<FlxSprite>();
 			_overlayGroup = new FlxGroup();
 			_zombieSpawnTimer = 0;
-			_currentRound = 0;
 			_restarting = false;
 			_diff = 1;
 
@@ -122,9 +122,12 @@ class GameState extends FlxState
 			_tilemaps[2].loadMapFromCSV(top, Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
 			_tilemaps[3].loadMapFromCSV(super_top, Assets.getBitmapData("Assets/img/tilemap.png"), TILE_WIDTH, TILE_HEIGHT, null, 1);
 
-			{ // Collision map
+			{ // Collision maps
 				_collisionMap = new FlxTilemap();
 				_collisionMap.visible = false;
+
+				_bulletCollisionMap = new FlxTilemap();
+				_bulletCollisionMap.visible = false;
 
 				buildCollisionMap();
 			}
@@ -168,6 +171,7 @@ class GameState extends FlxState
 
 			add(_tilemaps[3]);
 			add(_collisionMap);
+			add(_bulletCollisionMap);
 			add(_overlayGroup);
 		}
 
@@ -196,7 +200,7 @@ class GameState extends FlxState
 			FlxG.collide(_playerGroup, _collisionMap);
 			FlxG.collide(_medpackGroup, _collisionMap);
 
-			FlxG.collide(_collisionMap, mapVBullet);
+			FlxG.collide(_bulletCollisionMap, _bulletGroup, mapVBullet);
 			FlxG.overlap(_zombieGroup, _bulletGroup, zombieVBullet);
 
 			FlxG.overlap(_playerGroup, _medpackGroup, playerVMedpack);
@@ -292,7 +296,6 @@ class GameState extends FlxState
 		{ // Update misc
 			_hud.updateInfo(_playerGroup.members);
 			_diff += (.00001 * _playerGroup.countLiving() + 1) - 1;
-			trace(_diff);
 		}
 
 		super.update(elapsed);
@@ -373,7 +376,6 @@ class GameState extends FlxState
 			bait.drag.set(1500, 1500);
 			bait.elasticity = 0.8;
 			_baitGroup.add(bait);
-
 		}
 	}
 
@@ -440,6 +442,7 @@ class GameState extends FlxState
 
 		collisionString = collisionString.substr(0, collisionString.length - 1);
 		_collisionMap.loadMapFromCSV(collisionString, Assets.getBitmapData("Assets/img/tilemap.png"), Std.int(TILE_WIDTH / 2), Std.int(TILE_HEIGHT / 2), null, 1);
+		_bulletCollisionMap.loadMapFromCSV(collisionString, Assets.getBitmapData("Assets/img/tilemap.png"), Std.int(TILE_WIDTH / 2), Std.int(TILE_HEIGHT / 2), null, 1);
 
 		for (tilemapNumber in 1...3)
 		{
@@ -453,6 +456,25 @@ class GameState extends FlxState
 					if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][1] == 1) _collisionMap.setTile(tileX * 2 + 1, tileY * 2, 1);
 					if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][2] == 1) _collisionMap.setTile(tileX * 2, tileY * 2 + 1, 1);
 					if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][3] == 1) _collisionMap.setTile(tileX * 2 + 1, tileY * 2 + 1, 1);
+
+					if (_tilemaps[tilemapNumber].getTile(tileX, tileY) != 11 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 12 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 13 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 31 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 32 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 33 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 51 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 52 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 14 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 15 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 34 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 35)
+					{
+						if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][0] == 1) _bulletCollisionMap.setTile(tileX * 2, tileY * 2, 1);
+						if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][1] == 1) _bulletCollisionMap.setTile(tileX * 2 + 1, tileY * 2, 1);
+						if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][2] == 1) _bulletCollisionMap.setTile(tileX * 2, tileY * 2 + 1, 1);
+						if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][3] == 1) _bulletCollisionMap.setTile(tileX * 2 + 1, tileY * 2 + 1, 1);
+					}
 				}
 			}
 		}
@@ -471,15 +493,15 @@ class GameState extends FlxState
 			return;
 		}
 
+		new FlxTimer().start(2, function f(t:FlxTimer) { for (player in _playerGroup.members) if (player.health > 0) player.score += 5; } );
 		new FlxTimer().start(5, function f(t:FlxTimer) { _hud.shrink(); } );
 		new FlxTimer().start(5.5, function f(t:FlxTimer) { FlxG.camera.fade(0xFFFFFFFF, .5); });
 		new FlxTimer().start(6, restartRound);
+		_hud.enlage();
 	}
 
 	private function restartRound(t:FlxTimer = null):Void
 	{
-		_currentRound++;
-
 		save = new Map();
 
 		save.set("scores", []);
@@ -496,7 +518,7 @@ class GameState extends FlxState
 
 		for (tilemap in _tilemaps) save.get("tilemaps").push(tilemap.getData());
 
-		FlxG.switchState(new GameState(_playerDefs, _mapName, _totalRounds, _currentRound));
+		FlxG.switchState(new GameState(_playerDefs, _mapName, _totalRounds, _currentRound + 1));
 	}
 
 	private function zombieVBullet(zombie:FlxBasic, bullet:FlxBasic):Void

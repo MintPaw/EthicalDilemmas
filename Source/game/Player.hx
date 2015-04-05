@@ -49,7 +49,7 @@ class Player extends FlxSprite
 		_playerDef = playerDef;
 
 		drag.set(maxVelocity.x * 8, maxVelocity.y * 8);
-  		charges = 1; //TODO(jeru): Set to 0
+  		charges = 0;
 
 		_healthBar = new FlxBar(0, 0, null, 20, 2, null, "", 0, 1);
 		_healthBar.createFilledBar(0xFF147800, 0xFF2BFF00);
