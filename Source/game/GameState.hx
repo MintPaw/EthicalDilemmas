@@ -5,8 +5,6 @@ import flixel.FlxG;
 import flixel.FlxObject;
 import flixel.FlxState;
 import flixel.FlxSprite;
-import flixel.effects.particles.FlxParticle;
-import flixel.effects.particles.FlxEmitter;
 import flixel.group.FlxGroup;
 import flixel.group.FlxSpriteGroup;
 import flixel.math.FlxMath;
@@ -16,6 +14,7 @@ import flixel.tile.FlxTilemap;
 import flixel.tweens.FlxTween;
 import flixel.tweens.FlxEase;
 import flixel.util.FlxTimer;
+import menu.MenuState;
 import openfl.Assets;
 
 class GameState extends FlxState
@@ -28,6 +27,7 @@ class GameState extends FlxState
 
 	private var _currentRound:Int;
 	private var _totalRounds:Int;
+	private var _diff:Float;
 
 	private var _rnd:FlxRandom = new FlxRandom();
 
@@ -46,10 +46,9 @@ class GameState extends FlxState
 	private var _zombieGroup:FlxTypedSpriteGroup<Zombie>;
 	private var _bulletGroup:FlxTypedSpriteGroup<Bullet>;
 	private var _medpackGroup:FlxTypedSpriteGroup<FlxSprite>;
+	private var _baitGroup:FlxTypedSpriteGroup<FlxSprite>;
 	private var _explosionGroup:FlxTypedSpriteGroup<Explosion>;
 	private var _overlayGroup:FlxGroup;
-
-	private var _baitEmitter:FlxEmitter;
 
 	private var _hud:Hud;
 
@@ -68,21 +67,35 @@ class GameState extends FlxState
 		{ // Create misc
 			_zombieGroup = new FlxTypedSpriteGroup<Zombie>();
 			_bulletGroup = new FlxTypedSpriteGroup<Bullet>();
-			_medpackGroup = new FlxTypedSpriteGroup<FlxSprite>();
 			_explosionGroup = new FlxTypedSpriteGroup<Explosion>();
+			_medpackGroup = new FlxTypedSpriteGroup<FlxSprite>();
+			_baitGroup = new FlxTypedSpriteGroup<FlxSprite>();
 			_overlayGroup = new FlxGroup();
 			_zombieSpawnTimer = 0;
 			_currentRound = 0;
 			_restarting = false;
-
-			_baitEmitter = new FlxEmitter(0, 0, 10);
-			_baitEmitter.speed.set(50, 100);
+			_diff = 1;
 
 			_hud = new Hud(_playerDefs.length);
 			_overlayGroup.add(_hud);
 
 			_collisionMapDefs = [];
 			for (i in 0...1000) _collisionMapDefs.push([1, 1, 1, 1]);
+
+			_collisionMapDefs[109] = [1, 0, 1, 0];
+			_collisionMapDefs[108] = [0, 1, 0, 1];
+			_collisionMapDefs[117] = [1, 0, 1, 0];
+			_collisionMapDefs[118] = [0, 1, 0, 1];
+			_collisionMapDefs[114] = [0, 0, 0, 0];
+			_collisionMapDefs[115] = [0, 0, 0, 0];
+			_collisionMapDefs[116] = [0, 0, 0, 0];
+			_collisionMapDefs[105] = [0, 0, 0, 0];
+			_collisionMapDefs[106] = [0, 0, 0, 0];
+			_collisionMapDefs[107] = [0, 0, 0, 0];
+			_collisionMapDefs[77] = [0, 0, 0, 0];
+			_collisionMapDefs[78] = [0, 0, 0, 0];
+			_collisionMapDefs[68] = [0, 0, 0, 0];
+			_collisionMapDefs[69] = [0, 0, 0, 0];
 		}
 
 		{ // Create tilemap
@@ -150,7 +163,7 @@ class GameState extends FlxState
 			add(_zombieGroup);
 			add(_medpackGroup);
 			add(_bulletGroup);
-			for (p in _playerGroup.members) add(p.emitter);
+			add(_baitGroup);
 			add(_explosionGroup);
 
 			add(_tilemaps[3]);
@@ -189,6 +202,7 @@ class GameState extends FlxState
 			FlxG.overlap(_playerGroup, _medpackGroup, playerVMedpack);
 
 			FlxG.overlap(_explosionGroup, _zombieGroup, explotsionVZombie);
+			FlxG.overlap(_baitGroup, _zombieGroup, baitVZombie);
 
 			for (player in _playerGroup.members) FlxG.collide(player.mine, _collisionMap);
 		}
@@ -198,7 +212,7 @@ class GameState extends FlxState
 				_zombieSpawnTimer -= elapsed;
 				if (_zombieSpawnTimer <= 0)
 				{
-					_zombieSpawnTimer = ZOMBIE_TIMER;
+					_zombieSpawnTimer = ZOMBIE_TIMER * 1 / _diff;
 
 					var spawnPoint:FlxPoint = new FlxPoint();
 					_rnd.getObject(_zombieSpawns).copyTo(spawnPoint);
@@ -208,6 +222,7 @@ class GameState extends FlxState
 
 					var z:Zombie = new Zombie();
 					z.currentTarget = _playerGroup.members[0];
+					z.health *= _diff;
 					z.x = spawnPoint.x;
 					z.y = spawnPoint.y;
 					_zombieGroup.add(z);
@@ -217,6 +232,7 @@ class GameState extends FlxState
 			for (zombie in _zombieGroup.members)
 			{
 				if (zombie.health < 0) continue;
+
 				{ // Retargeting
 					zombie.targetTime -= elapsed;
 					if (zombie.targetTime <= 0)
@@ -229,7 +245,10 @@ class GameState extends FlxState
 						for (player in _playerGroup.members)
 						{
 							if (player.health > 0) targets.push(cast(player, FlxSprite));
-							for (part in player.emitter) if (part.health > 0) targets.push(cast(part, FlxSprite));
+							for (bait in _baitGroup.members)
+							{
+								if (bait.health > 0) targets.push(cast(bait, FlxSprite));
+							}
 						}
 
 						if (targets.length > 0) zombie.currentTarget = targets[0];
@@ -239,7 +258,7 @@ class GameState extends FlxState
 						}
 
 						zombie.path.cancel();
-						if (zombie.currentTarget != null && FlxMath.distanceBetween(zombie, zombie.currentTarget) > Zombie.ATTACK_RANGE)
+						if (zombie.currentTarget != null)
 						{
 							zombie.path.start(zombie, _collisionMap.findPath(zombie.getMidpoint(), zombie.currentTarget.getMidpoint()), 50);
 						}
@@ -272,6 +291,7 @@ class GameState extends FlxState
 
 		{ // Update misc
 			_hud.updateInfo(_playerGroup.members);
+			_diff += _diff * (.01 * _playerGroup.countLiving() + 1) - 1;
 		}
 
 		super.update(elapsed);
@@ -339,16 +359,20 @@ class GameState extends FlxState
 		// Bait
 		if (type == 3)
 		{
-			for (i in 0...10)
-			{
-				var part:FlxParticle = new FlxParticle();
-				part.makeGraphic(2, 2, 0xFFCC5500);
-				part.visible = false;
-				part.health = 0.0001;
-				player.emitter.add(part);
-			}
+			var throwVector:FlxPoint = new FlxPoint();
+			throwVector.copyFrom(dir);
+			throwVector.x *= 500;
+			throwVector.y *= 500;
 
-			player.emitter.start(false, 0.1, 10);
+			var bait:FlxSprite = new FlxSprite();
+			bait.makeGraphic(3, 3, 0xFFCC5500);
+			bait.x = loc.x - bait.width / 2;
+			bait.y = loc.y - bait.height / 2;
+			bait.velocity.set(throwVector.x, throwVector.y);
+			bait.drag.set(1500, 1500);
+			bait.elasticity = 0.8;
+			_baitGroup.add(bait);
+
 		}
 	}
 
@@ -438,12 +462,17 @@ class GameState extends FlxState
 		if (_restarting) return;
 		_restarting = true;
 
-		trace("Restarting");
+		if (_currentRound == _totalRounds)
+		{
+			new FlxTimer().start(5, function f(t:FlxTimer) { FlxG.camera.fade(0xFF000000, 2, false); });
+			new FlxTimer().start(8, function f(t:FlxTimer) { FlxG.switchState(new MenuState()); });
+			_hud.enlage();
+			return;
+		}
 
 		new FlxTimer().start(5, function f(t:FlxTimer) { _hud.shrink(); } );
 		new FlxTimer().start(5.5, function f(t:FlxTimer) { FlxG.camera.fade(0xFFFFFFFF, .5); });
 		new FlxTimer().start(6, restartRound);
-		_hud.enlage();
 	}
 
 	private function restartRound(t:FlxTimer = null):Void
@@ -490,6 +519,12 @@ class GameState extends FlxState
 	{
 		FlxG.log.add("hit " + _rnd.int(0, 1));
 		zombie.kill();
+	}
+
+	private function baitVZombie(bait:FlxBasic, zombie:FlxBasic):Void
+	{
+		cast(bait, FlxSprite).health = 0;
+		bait.kill();
 	}
 }
 

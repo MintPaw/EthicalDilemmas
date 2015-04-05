@@ -2,8 +2,6 @@ package game;
 
 import flixel.FlxG;
 import flixel.FlxSprite;
-import flixel.effects.particles.FlxParticle;
-import flixel.effects.particles.FlxEmitter;
 import flixel.input.gamepad.FlxGamepad;
 import flixel.input.gamepad.XboxButtonID;
 import flixel.math.FlxPoint;
@@ -23,7 +21,6 @@ class Player extends FlxSprite
 	public var title:String;
 	public var score:Float = 0;
 	public var mine:FlxSprite;
-	public var emitter:FlxEmitter;
 
 	public var adds:Array<Dynamic> = [];
 	public var shootCallback:Dynamic;
@@ -49,8 +46,6 @@ class Player extends FlxSprite
 	{
 		super();
 
-		health = .0001;
-
 		_playerDef = playerDef;
 
 		drag.set(maxVelocity.x * 8, maxVelocity.y * 8);
@@ -74,10 +69,6 @@ class Player extends FlxSprite
 		mine.makeGraphic(5, 5, 0xFFFF8800);
 		mine.visible = false;
 
-		emitter = new FlxEmitter();
-		emitter.lifespan.set(100, 100);
-		emitter.drag.set(50, 50);
-
 		_itemShowTime = 5;
 
 		var colour:UInt = 0;
@@ -87,7 +78,7 @@ class Player extends FlxSprite
 		{
 			title = "Medic";
 			colour = 0xFF0000FF;
-			baseChargeTime = 10;
+			baseChargeTime = 30;
 			maxCharges = 5;
 			baseBulletTime = 1;
 			baseBulletDamage = .4;
@@ -98,7 +89,7 @@ class Player extends FlxSprite
 		{
 			title = "Explosion Man";
 			colour = 0xFFFF0000;
-			baseChargeTime = 20;
+			baseChargeTime = 25;
 			maxCharges = 3;
 			baseBulletTime = .4;
 			baseBulletDamage = .2;
@@ -109,7 +100,7 @@ class Player extends FlxSprite
 		{
 			title = "Demolition Guy";
 			colour = 0xFFFF00FF;
-			baseChargeTime = 10;
+			baseChargeTime = 20;
 			maxCharges = 10;
 			baseBulletTime = .1;
 			baseBulletDamage = .1;
@@ -120,8 +111,8 @@ class Player extends FlxSprite
 		{
 			title = "Baiter";
 			colour = 0xFFFFFF00;
-			baseChargeTime = 10;
-			maxCharges = 10;
+			baseChargeTime = 5;
+			maxCharges = 5;
 			baseBulletTime = .05;
 			baseBulletDamage = .05;
 		}
@@ -252,22 +243,6 @@ class Player extends FlxSprite
 			_itemText.y = y - 50;
 			_itemText.visible = _itemShowTime > 0;
 			_itemShowTime -= elapsed;
-		}
-
-		{ //Update misc specials
-			var launchAngle:Float = 0;
-			if (_dirVector.x == 1 && _dirVector.y == 0)		 launchAngle = 0;
-			if (_dirVector.x == 1 && _dirVector.y == 1)		 launchAngle = 45;
-			if (_dirVector.x == 0 && _dirVector.y == 1)		 launchAngle = 90;
-			if (_dirVector.x == -1 && _dirVector.y == 1)	 launchAngle = 90 + 45;
-			if (_dirVector.x == -1 && _dirVector.y == 0)	 launchAngle = 180;
-			if (_dirVector.x == -1 && _dirVector.y == -1)	 launchAngle = 180 + 45;
-			if (_dirVector.x == 0 && _dirVector.y == -1)	 launchAngle = 270;
-			if (_dirVector.x == 0 && _dirVector.y == -1)	 launchAngle = 270 + 90;
-
-			emitter.launchAngle.set(launchAngle - 45, launchAngle + 45);
-			emitter.x = x;
-			emitter.y = y;
 		}
 	}
 
