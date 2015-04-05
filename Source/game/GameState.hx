@@ -151,16 +151,46 @@ class GameState extends FlxState
 
 		{ // Setup zombie spawns
 			_zombieSpawns = [];
-			_zombieSpawns.push(new FlxPoint(1, 1));
-			_zombieSpawns.push(new FlxPoint(1, _tilemaps[0].heightInTiles - 2));
-			_zombieSpawns.push(new FlxPoint(_tilemaps[0].widthInTiles - 2, 1));
-			_zombieSpawns.push(new FlxPoint(_tilemaps[0].widthInTiles - 2, _tilemaps[0].heightInTiles - 2));
+			if (_mapName == "map1")
+			{
+				_zombieSpawns.push(new FlxPoint(0, 0));
+				_zombieSpawns.push(new FlxPoint(0, 1));
+				_zombieSpawns.push(new FlxPoint(0, 2));
+				_zombieSpawns.push(new FlxPoint(0, 3));
+				_zombieSpawns.push(new FlxPoint(0, 4));
+				_zombieSpawns.push(new FlxPoint(0, 5));
+				_zombieSpawns.push(new FlxPoint(0, 6));
+				_zombieSpawns.push(new FlxPoint(0, 7));
+				_zombieSpawns.push(new FlxPoint(0, 8));
+				_zombieSpawns.push(new FlxPoint(0, 9));
+				_zombieSpawns.push(new FlxPoint(17, 15));
+				_zombieSpawns.push(new FlxPoint(18, 15));
+				_zombieSpawns.push(new FlxPoint(19, 15));
+				_zombieSpawns.push(new FlxPoint(20, 15));
+				_zombieSpawns.push(new FlxPoint(16, 0));
+				_zombieSpawns.push(new FlxPoint(17, 0));
+				_zombieSpawns.push(new FlxPoint(18, 0));
+				_zombieSpawns.push(new FlxPoint(19, 0));
+				_zombieSpawns.push(new FlxPoint(29, 7));
+				_zombieSpawns.push(new FlxPoint(29, 8));
+			} else {
+				_zombieSpawns.push(new FlxPoint(20, 14));
+				_zombieSpawns.push(new FlxPoint(4, 5));
+				_zombieSpawns.push(new FlxPoint(10, 6));
+				_zombieSpawns.push(new FlxPoint(24, 4));
+				_zombieSpawns.push(new FlxPoint(24, 9));
+				_zombieSpawns.push(new FlxPoint(18, 5));
+				_zombieSpawns.push(new FlxPoint(13, 0));
+				_zombieSpawns.push(new FlxPoint(6, 14));
+				_zombieSpawns.push(new FlxPoint(6, 14));
+			}
 		}
 
 		{ // Add groups
 			add(_tilemaps[0]);
 			add(_tilemaps[1]);
 			add(_tilemaps[2]);
+			add(_tilemaps[3]);
 
 			add(_playerGroup);
 			add(_zombieGroup);
@@ -169,7 +199,6 @@ class GameState extends FlxState
 			add(_baitGroup);
 			add(_explosionGroup);
 
-			add(_tilemaps[3]);
 			add(_collisionMap);
 			add(_bulletCollisionMap);
 			add(_overlayGroup);
@@ -199,6 +228,7 @@ class GameState extends FlxState
 		{ // Update collision
 			FlxG.collide(_playerGroup, _collisionMap);
 			FlxG.collide(_medpackGroup, _collisionMap);
+			FlxG.collide(_baitGroup, _collisionMap);
 
 			FlxG.collide(_bulletCollisionMap, _bulletGroup, mapVBullet);
 			FlxG.overlap(_zombieGroup, _bulletGroup, zombieVBullet);
@@ -235,7 +265,7 @@ class GameState extends FlxState
 
 			for (zombie in _zombieGroup.members)
 			{
-				if (zombie.health < 0) continue;
+				if (zombie.health <= 0) continue;
 
 				{ // Retargeting
 					zombie.targetTime -= elapsed;
@@ -295,7 +325,31 @@ class GameState extends FlxState
 
 		{ // Update misc
 			_hud.updateInfo(_playerGroup.members);
-			_diff += (.00001 * _playerGroup.countLiving() + 1) - 1;
+			_diff += (.0001 * _playerGroup.countLiving() + 1) - 1;
+		}
+
+		{ // Update bullets
+			for (b in _bulletGroup.members)
+			{
+				if (b.health < 0) continue;
+				if (b.x < 0 || b.y < 0 || b.x > FlxG.width + 5 || b.y > FlxG.height + 5)
+				{
+					b.health = 0;
+					b.kill();
+				}
+			}
+		}
+
+		{ // Update bait
+			for (b in _baitGroup.members)
+			{
+				if (b.health < 0) continue;
+				if (b.x < 0 || b.y < 0 || b.x > FlxG.width + 5 || b.y > FlxG.height + 5)
+				{
+					b.health = 0;
+					b.kill();
+				}
+			}
 		}
 
 		super.update(elapsed);
@@ -303,7 +357,7 @@ class GameState extends FlxState
 
 	public function shoot(loc:FlxPoint, dir:FlxPoint, damage:Float):Void
 	{
-		var b:Bullet = new Bullet();
+		var b:Bullet = _bulletGroup.recycle(Bullet);
 		b.damage = damage;
 		b.x = loc.x - b.width / 2;
 		b.y = loc.y - b.height / 2;
@@ -465,6 +519,7 @@ class GameState extends FlxState
 						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 33 &&
 						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 51 &&
 						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 52 &&
+						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 53 &&
 						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 14 &&
 						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 15 &&
 						_tilemaps[tilemapNumber].getTile(tileX, tileY) != 34 &&
@@ -541,6 +596,7 @@ class GameState extends FlxState
 	private function explotsionVZombie(explosion:FlxBasic, zombie:FlxBasic):Void
 	{
 		FlxG.log.add("hit " + _rnd.int(0, 1));
+		cast(zombie, FlxSprite).health = 0;
 		zombie.kill();
 	}
 

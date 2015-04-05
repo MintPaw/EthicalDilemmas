@@ -182,11 +182,14 @@ class Player extends FlxSprite
 			if (y > FlxG.height - height) y = FlxG.height - height;
 
 			_bulletTime -= elapsed;
-			if (up || down || left || right) _dirVector.set(0, 0);
-			if (up) _dirVector.y = -1;
-			if (down) _dirVector.y = 1;
-			if (left) _dirVector.x = -1;
-			if (right) _dirVector.x = 1;
+			if (!shoot)
+			{
+				if (up || down || left || right) _dirVector.set(0, 0);
+				if (up) _dirVector.y = -1;
+				if (down) _dirVector.y = 1;
+				if (left) _dirVector.x = -1;
+				if (right) _dirVector.x = 1;
+			}
 		}
 
 		{ // Update shooting

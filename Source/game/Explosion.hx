@@ -13,12 +13,12 @@ class Explosion extends FlxSprite
 
 		if (smoke)
 		{
-			loadGraphic("Assets/img/blackSmoke" + Math.round(Math.random() * 25) + ".png");
+			loadGraphic("Assets/img/blackSmoke" + Math.round(Math.random() * 24) + ".png");
 			scale.set(.75, .75);
 			_fadeTime = 10;
 			_totalFadeTime = 20;
 		} else {
-			loadGraphic("Assets/img/explosion" + Math.round(Math.random() * 9) + ".png");
+			loadGraphic("Assets/img/explosion" + Math.round(Math.random() * 8) + ".png");
 			scale.set(.3, .3);
 			_fadeTime = 1;
 			_totalFadeTime = 1;
