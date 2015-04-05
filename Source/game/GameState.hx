@@ -13,6 +13,9 @@ import flixel.math.FlxMath;
 import flixel.math.FlxPoint;
 import flixel.math.FlxRandom;
 import flixel.tile.FlxTilemap;
+import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
+import flixel.util.FlxTimer;
 import openfl.Assets;
 
 class GameState extends FlxState
@@ -21,10 +24,16 @@ class GameState extends FlxState
 	public static inline var TILE_HEIGHT:Int = 32;
 	public static inline var ZOMBIE_TIMER:Int = 5;
 
+	public static var save:Map<String, Dynamic>;
+
+	private var _currentRound:Int;
+	private var _totalRounds:Int;
+
 	private var _rnd:FlxRandom = new FlxRandom();
 
 	private var _tilemaps:Array<FlxTilemap>;
 	private var _collisionMap:FlxTilemap;
+	private var _collisionMapDefs:Array<Array<Int>>;
 
 	private var _playerDefs:Array<PlayerDef>;
 	private var _mapName:String;
@@ -43,26 +52,34 @@ class GameState extends FlxState
 
 	private var _hud:Hud;
 
-	public function new(playerDefs:Array<PlayerDef>, mapName:String)
+	public function new(playerDefs:Array<PlayerDef>, mapName:String, totalRounds:Int)
 	{
 		super();
 
 		_playerDefs = playerDefs;
 		_mapName = mapName;
+		_totalRounds = totalRounds;
 	}
 
 	override public function create():Void
 	{
-		{ // Create misc vars
+		{ // Create misc
 			_zombieGroup = new FlxTypedSpriteGroup<Zombie>();
 			_bulletGroup = new FlxTypedSpriteGroup<Bullet>();
 			_medpackGroup = new FlxTypedSpriteGroup<FlxSprite>();
 			_explosionGroup = new FlxTypedSpriteGroup<Explosion>();
 			_overlayGroup = new FlxGroup();
 			_zombieSpawnTimer = 0;
+			_currentRound = 0;
 
 			_baitEmitter = new FlxEmitter(0, 0, 10);
 			_baitEmitter.speed.set(50, 100);
+
+			_hud = new Hud(_playerDefs.length);
+			_overlayGroup.add(_hud);
+
+			_collisionMapDefs = [];
+			for (i in 0...1000) _collisionMapDefs.push([1, 1, 1, 1]);
 		}
 
 		{ // Create tilemap
@@ -96,7 +113,6 @@ class GameState extends FlxState
 
 				buildCollisionMap();
 			}
-
 		}
 
 		{ // Create players
@@ -123,11 +139,6 @@ class GameState extends FlxState
 			_zombieSpawns.push(new FlxPoint(_tilemaps[0].widthInTiles - 2, _tilemaps[0].heightInTiles - 2));
 		}
 
-		{
-			_hud = new Hud(_playerDefs.length);
-			_overlayGroup.add(_hud);
-		}
-
 		{ // Add groups
 			add(_tilemaps[0]);
 			add(_tilemaps[1]);
@@ -144,7 +155,6 @@ class GameState extends FlxState
 			add(_collisionMap);
 			add(_overlayGroup);
 		}
-
 	}
 
 	override public function update(elapsed:Float):Void
@@ -158,7 +168,7 @@ class GameState extends FlxState
 
 			FlxG.overlap(_playerGroup, _medpackGroup, playerVMedpack);
 
-			FlxG.overlap(_zombieGroup, _explosionGroup, zombieVExplosion);
+			FlxG.overlap(_explosionGroup, _zombieGroup, explotsionVZombie);
 		}
 
 		{ // Update zombies
@@ -184,6 +194,7 @@ class GameState extends FlxState
 
 			for (zombie in _zombieGroup.members)
 			{
+				if (zombie.health < 0) continue;
 				{ // Retargeting
 					zombie.targetTime -= elapsed;
 					if (zombie.targetTime <= 0)
@@ -230,7 +241,7 @@ class GameState extends FlxState
 		{ // Update player
 			for (player in _playerGroup.members)
 			{
-				if (player.health > 0) player.score += elapsed;
+				if (player.health > 0) player.score += elapsed / (_playerGroup.countLiving() / _playerGroup.members.length);
 			}
 		}
 
@@ -319,21 +330,21 @@ class GameState extends FlxState
 	private function createExplosion(xpos:Float, ypos:Float, ratio:Float = 1, destoryTerrain:Bool = false):Void
 	{
 		var explosion:Explosion = new Explosion();
-		explosion.x = xpos - explosion.width / 2;
-		explosion.y = ypos - explosion.height / 2;
 		explosion.scale.set(ratio, ratio);
 		explosion.width *= ratio;
 		explosion.height *= ratio;
+		explosion.x = xpos - explosion.width / 2;
+		explosion.y = ypos - explosion.height / 2;
+		explosion.centerOffsets(false);
 		_explosionGroup.add(explosion);
 
 		for (i in 0..._rnd.int(3, 5))
 		{
 			var smoke:Explosion = new Explosion(true);
+			smoke.x = xpos - smoke.width / 2 + _rnd.float(-20, 20);
+			smoke.y = ypos - smoke.height / 2 + _rnd.float(-20, 20);
 			smoke.scale.set(ratio, ratio);
-			smoke.x = explosion.x + _rnd.float(-20, 20);
-			smoke.y = explosion.y + _rnd.float(-20, 20);
-			smoke.deadly = false;
-			_explosionGroup.add(smoke);
+			add(smoke);
 		}
 
 		if (destoryTerrain)
@@ -371,7 +382,6 @@ class GameState extends FlxState
 		}
 
 		collisionString = collisionString.substr(0, collisionString.length - 1);
-
 		_collisionMap.loadMapFromCSV(collisionString, Assets.getBitmapData("Assets/img/tilemap.png"), Std.int(TILE_WIDTH / 2), Std.int(TILE_HEIGHT / 2), null, 1);
 
 		for (tilemapNumber in 1...3)
@@ -382,13 +392,40 @@ class GameState extends FlxState
 
 				if (_tilemaps[tilemapNumber].getTile(tileX, tileY) != 0)
 				{
-					_collisionMap.setTile(tileX * 2, tileY * 2, 1);
-					_collisionMap.setTile(tileX * 2 + 1, tileY * 2, 1);
-					_collisionMap.setTile(tileX * 2, tileY * 2 + 1, 1);
-					_collisionMap.setTile(tileX * 2 + 1, tileY * 2 + 1, 1);
+					if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][0] == 1) _collisionMap.setTile(tileX * 2, tileY * 2, 1);
+					if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][1] == 1) _collisionMap.setTile(tileX * 2 + 1, tileY * 2, 1);
+					if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][2] == 1) _collisionMap.setTile(tileX * 2, tileY * 2 + 1, 1);
+					if (_collisionMapDefs[_tilemaps[tilemapNumber].getTile(tileX, tileY)][3] == 1) _collisionMap.setTile(tileX * 2 + 1, tileY * 2 + 1, 1);
 				}
 			}
 		}
+	}
+
+	private function showScores():Void
+	{
+		new FlxTimer().start(5, restartRound);
+		//_hud.enlage();
+	}
+
+	private function restartRound(t:FlxTimer = null):Void
+	{
+		_currentRound++;
+
+		save = new Map();
+
+		save.set("scores", []);
+		save.set("charges", []);
+		save.set("chargeTimes", []);
+		save.set("tilemaps", []);
+
+		for (player in _playerGroup.members)
+		{
+			save.get("scores").push(player.score);
+			save.get("charges").push(player.charges);
+			save.get("chargeTimes").push(player.chargeTime);
+		}
+
+		for (tilemap in _tilemaps) save.get("tilemaps").push(tilemap);
 	}
 
 	private function zombieVBullet(zombie:FlxBasic, bullet:FlxBasic):Void
@@ -408,9 +445,10 @@ class GameState extends FlxState
 		cast(player, Player).health = 1;
 	}
 
-	private function zombieVExplosion(zombie:FlxBasic, explosion:FlxBasic):Void
+	private function explotsionVZombie(explosion:FlxBasic, zombie:FlxBasic):Void
 	{
-		if (cast(explosion, Explosion).deadly) zombie.kill();
+		FlxG.log.add("hit " + _rnd.int(0, 1));
+		zombie.kill();
 	}
 }
 

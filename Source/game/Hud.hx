@@ -3,6 +3,8 @@ package game;
 import flixel.FlxG;
 import flixel.group.FlxSpriteGroup;
 import flixel.text.FlxText;
+import flixel.tweens.FlxTween;
+import flixel.tweens.FlxEase;
 
 class Hud extends FlxSpriteGroup
 {
@@ -29,6 +31,22 @@ class Hud extends FlxSpriteGroup
 		for (i in 0...players.length)
 		{
 			_texts[i].text = players[i].title + ": " + Math.round(players[i].score);
+		}
+	}
+
+	public function enlage():Void
+	{
+		for (text in _texts)
+		{
+			FlxTween.tween(text.scale, { x: 3, y: 3 }, 1, { ease: FlxEase.elasticOut });
+		}
+	}
+
+	public function shrink():Void
+	{
+		for (text in _texts)
+		{
+			FlxTween.tween(text.scale, { x: 1, y: 1 }, 1, { ease: FlxEase.elasticOut });
 		}
 	}
 }
